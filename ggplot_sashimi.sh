@@ -24,72 +24,84 @@ showhelp() {
   "
 }
 
-sortbam(){
-  if [ ! -f "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")" ]; then
-      "$SAMTOOLS_BIN_DIR"/samtools sort "$BAM" -@ "$THREADS" -o "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")"
-  fi
+splitbam(){
+  if [[ ! -f "$(echo "$BAM" | sed "s/[.]bam$/.f.bam/")" && "$STRANDED" != "no" ]]; then
+		"$SAMTOOLS_BIN_DIR"/samtools view -bh -f 83 "$BAM" -@ "$THREADS" -o "$(echo "$BAM" | sed "s/[.]bam$/.83.bam/")"
+		"$SAMTOOLS_BIN_DIR"/samtools view -bh -f 99 "$BAM" -@ "$THREADS" -o "$(echo "$BAM" | sed "s/[.]bam$/.99.bam/")"
+		"$SAMTOOLS_BIN_DIR"/samtools view -bh -f 147 "$BAM" -@ "$THREADS" -o "$(echo "$BAM" | sed "s/[.]bam$/.147.bam/")"
+		"$SAMTOOLS_BIN_DIR"/samtools view -bh -f 163 "$BAM" -@ "$THREADS" -o "$(echo "$BAM" | sed "s/[.]bam$/.163.bam/")"
+		if [[ "$STRANDED" = "yes" ]]; then
+			"$SAMTOOLS_BIN_DIR"/samtools merge -f -@ "$THREADS" "$(echo "$BAM" | sed "s/[.]bam$/.f.bam/")" "$( echo "$BAM" | sed "s/[.]bam$/.99.bam/g")" "$( echo "$BAM" | sed "s/[.]bam$/.147.bam/g")"
+			"$SAMTOOLS_BIN_DIR"/samtools merge -f -@ "$THREADS" "$(echo "$BAM" | sed "s/[.]bam$/.r.bam/")" "$( echo "$BAM" | sed "s/[.]bam$/.83.bam/g")" "$( echo "$BAM" | sed "s/[.]bam$/.163.bam/g")"
+		elif [[ "$STRANDED" = "reverse" ]]; then
+			"$SAMTOOLS_BIN_DIR"/samtools merge -f -@ "$THREADS" "$(echo "$BAM" | sed "s/[.]bam$/.f.bam/")" "$( echo "$BAM" | sed "s/[.]bam$/.83.bam/g")" "$( echo "$BAM" | sed "s/[.]bam$/.163.bam/g")"
+			"$SAMTOOLS_BIN_DIR"/samtools merge -f -@ "$THREADS" "$(echo "$BAM" | sed "s/[.]bam$/.r.bam/")" "$( echo "$BAM" | sed "s/[.]bam$/.99.bam/g")" "$( echo "$BAM" | sed "s/[.]bam$/.147.bam/g")"
+		fi
+		rm "$( echo "$BAM" | sed "s/[.]bam$/.99.bam/g")" 
+		rm "$( echo "$BAM" | sed "s/[.]bam$/.147.bam/g")"
+		rm "$( echo "$BAM" | sed "s/[.]bam$/.83.bam/g")"
+		rm "$( echo "$BAM" | sed "s/[.]bam$/.163.bam/g")"
+	fi
 }
 
-splitbam(){
-  if [ ! -f "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.f.bam/")" && "$STRANDED" = "yes" ]; then
-		"$BAMTOOLS_BIN_DIR"/bamtools filter -in "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")" -isReverseStrand FALSE -isMateReverseStrand FALSE -out "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.f.bam/")"
-		"$BAMTOOLS_BIN_DIR"/bamtools filter -in "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")" -isReverseStrand TRUE -isMateReverseStrand TRUE -out "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.r.bam/")"
-  elif [ ! -f "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.f.bam/")" && "$STRANDED" = "reverse" ]; then
-  	"$BAMTOOLS_BIN_DIR"/bamtools filter -in "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")" -isReverseStrand TRUE -isMateReverseStrand TRUE -out "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.f.bam/")"
-  	"$BAMTOOLS_BIN_DIR"/bamtools filter -in "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")" -isReverseStrand FALSE -isMateReverseStrand FALSE -out "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.r.bam/")"
-  fi
+sortbam(){
+	if [[ ! -f "$(echo "$BAM" | sed "s/[.]bam$/.f.sortedbyposition.bam/")" && "$(echo "$BAM" | sed "s/[.]bam$/.r.sortedbyposition.bam/")" && "$STRANDED" != "no" ]]; then
+		"$SAMTOOLS_BIN_DIR"/samtools sort "$(echo "$BAM" | sed "s/[.]bam$/.f.bam/")" -@ "$THREADS" -o "$(echo "$BAM" | sed "s/[.]bam$/.f.sortedbyposition.bam/")"
+		"$SAMTOOLS_BIN_DIR"/samtools sort "$(echo "$BAM" | sed "s/[.]bam$/.r.bam/")" -@ "$THREADS" -o "$(echo "$BAM" | sed "s/[.]bam$/.r.sortedbyposition.bam/")"
+	elif [[ ! -f "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")" ]]
+		"$SAMTOOLS_BIN_DIR"/samtools sort "$BAM" -@ "$THREADS" -o "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")"
+	fi
 }
 
 indexbam(){
-  if [ ! -f "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam.bai/")" & "$STRANDED" = "no" ]; then
-  	"$SAMTOOLS_BIN_DIR"/samtools index -@ "$THREADS" "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")"
-  elif [ ! -f "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.f.bam.bai/")" & "$STRANDED" != "no" ]; then
-  	"$SAMTOOLS_BIN_DIR"/samtools index -@ "$THREADS" "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.f.bam/")"
-		"$SAMTOOLS_BIN_DIR"/samtools index -@ "$THREADS" "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.r.bam/")"
-  fi
+	if [[ ! -f "$(echo "$BAM" | sed "s/[.]bam$/.f.sortedbyposition.bam.bai/")" && ! -f "$(echo "$BAM" | sed "s/[.]bam$/.r.sortedbyposition.bam.bai/")" && "$STRANDED" != "no" ]]; then
+		"$SAMTOOLS_BIN_DIR"/samtools index -@ "$THREADS" "$(echo "$BAM" | sed "s/[.]bam$/.f.sortedbyposition.bam/")"
+		"$SAMTOOLS_BIN_DIR"/samtools index -@ "$THREADS" "$(echo "$BAM" | sed "s/[.]bam$/.r.sortedbyposition.bam/")"
+	elif [[ ! -f "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam.bai/")" ]]; then
+		"$SAMTOOLS_BIN_DIR"/samtools index -@ "$THREADS" "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")"
+	fi
 }
 
 getplotcoords(){
-	CONTIG="$(echo "$COORDS)" | cut -d":" -f1)"
-	START="$(echo "$COORDS)" | cut -d":" -f1 | cut -d"-" -f1)"
-	STOP="$(echo "$COORDS)" | cut -d":" -f1 | cut -d"-" -f2)"
-	
-	PLOT_START=$(($variableA/1000*1024)) 
-	PLOT_STOP
+	CONTIG="$(echo "$COORDS" | cut -d":" -f1)"
+	START="$(echo "$COORDS" | cut -d":" -f2 | cut -d"-" -f1)"
+	STOP="$(echo "$COORDS" | cut -d":" -f2 | cut -d"-" -f2)"
 
-
-
+	PLOT_START=$(($START - ($STOP - $START + 1)/10))
+	PLOT_STOP=$(($STOP + ($STOP - $START + 1)/10))
 }
 
-
-
-
-
-
-
-
-of(
-
-
-
-
-
-
-
+getjunctions(){
+	if [ "$STRANDED" = "no" ]; then
+		"$REGTOOLS_BIN_DIR"/regtools junctions extract "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")" -r "$CONTIG":"$PLOT_START"-"$PLOT_STOP" -o "$OUTPUT-DIR"/"$(basename "$BAM" | sed "s/[.]bam$/."$CONTIG":"$PLOT_START"-"$PLOT_STOP".junctions.tsv/")"
+	else
+		"$REGTOOLS_BIN_DIR"/regtools junctions extract "$(echo "$BAM" | sed "s/[.]bam$/.f.sortedbyposition.bam/")" -r "$CONTIG":"$PLOT_START"-"$PLOT_STOP" -o "$OUTPUT_DIR"/"$(basename "$BAM" | sed "s/[.]bam$/."$CONTIG":"$PLOT_START"-"$PLOT_STOP".f.junctions.tsv/")"
+		"$REGTOOLS_BIN_DIR"/regtools junctions extract "$(echo "$BAM" | sed "s/[.]bam$/.r.sortedbyposition.bam/")" -r "$CONTIG":"$PLOT_START"-"$PLOT_STOP" -o "$OUTPUT_DIR"/"$(basename "$BAM" | sed "s/[.]bam$/."$CONTIG":"$PLOT_START"-"$PLOT_STOP".r.junctions.tsv/")"
+	fi
 }
 
-findjunctions(){
-"$REGTOOLS_BIN_DIR"/regtools junctions extract "$BAM" -r -o "$BAM".junctions.tsv
+getmpileup(){
+	if [ "$STRANDED" = "no" ]; then
+		"$SAMTOOLS_BIN_DIR"/samtools mpileup -a -d 1000000 -r "$CONTIG":"$PLOT_START"-"$PLOT_STOP" -o "$OUTPUT_DIR"/"$(basename "$BAM" | sed "s/[.]bam$/.mpileup/")" "$(echo "$BAM" | sed "s/[.]bam$/.sortedbyposition.bam/")" 
+	else
+		"$SAMTOOLS_BIN_DIR"/samtools mpileup -a -d 1000000 -r "$CONTIG":"$PLOT_START"-"$PLOT_STOP" -o "$OUTPUT_DIR"/"$(basename "$BAM" | sed "s/[.]bam$/."$CONTIG":"$PLOT_START"-"$PLOT_STOP".f.mpileup/")" "$(echo "$BAM" | sed "s/[.]bam$/.f.sortedbyposition.bam/")"
+		"$SAMTOOLS_BIN_DIR"/samtools mpileup -a -d 1000000 -r "$CONTIG":"$PLOT_START"-"$PLOT_STOP" -o "$OUTPUT_DIR"/"$(basename "$BAM" | sed "s/[.]bam$/."$CONTIG":"$PLOT_START"-"$PLOT_STOP".r.mpileup/")" "$(echo "$BAM" | sed "s/[.]bam$/.r.sortedbyposition.bam/")"
+	fi
 }
 
+simplifympileup(){
+while read Line 
 
+}
 
 main(){
-
-
-
+	splitbam
+	sortbam
+	indexbam
+	getjunctions
+	getmpileup
+	
+	createRinputs
 }
 
-
-
-
+main
