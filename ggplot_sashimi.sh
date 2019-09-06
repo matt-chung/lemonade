@@ -90,46 +90,55 @@ getmpileup(){
 }
 
 summarizempileup(){
-	echo -e ""contig"\t"position"\t"depth"\t"A"\t"T"\t"G"\t"C"\t"a"\t"t"\t"g"\t"c"\t"insertions"\t"deletions"" > "$OUTPUT_DIR"/"$(basename "$BAM" | sed "s/[.]bam$/."$CONTIG":"$PLOT_START"-"$PLOT_STOP".f.mpileup.summary/")"
-	
-	while read LINE; do
-		CONTIG="$(echo "$LINE" | cut -f1)"
-		POSITION="$(echo "$LINE" | cut -f2)"
-		REF_BASE="$(echo "$LINE" | cut -f3)"
-		REV_REF_BASE="$(echo "$REF_BASE" | tr '[:upper:]' '[:lower:]')"
-		BASES="$(echo "$LINE" | cut -f4 | sed "s/\^.//g" | sed "s/[<>$]//g" | sed "s/[.]/"$REF_BASE"/g" | sed "s/[,]/"$REV_REF_BASE"/g")"
-		INSERTION=""
-		DELETION=""
-		
-		BASES="$(echo "$BASES" | sed "s/[<>$]//g")"
-		while [ "$(echo $BASES | grep -ob "[+-]" | head -n1 | wc -l)" -gt 0 ]; do
-			INDEL_START="$(echo $BASES | grep -ob "[+-]" | head -n1 | cut -d":" -f1)"
-			INDEL_LENGTH="${BASES:${INDEL_START} + 1:${INDEL_START} + 1}"
-			INDEL="${BASES:${INDEL_START}:${INS_LENGTH} + 2}"
-			OCCURENCES="$(echo "$BASES" | grep -o -- "$INDEL" | wc -l)"
-			if [ "$(echo $INDEL | grep -ob "+" | wc -l)" -gt 0 ]; then
-				INSERTION=""$INSERTION"|"$OCCURENCES":"$INDEL""
-			else
-				DELETION=""$DELETION"|"$OCCURENCES":"$INDEL""
-			fi
-			BASES="$(echo "$BASES" | sed "s/"$INDEL"//g")"
-		done
+echo -e ""contig"\t"position"\t"ref"\t"depth"\t"A"\t"T"\t"G"\t"C"\t"a"\t"t"\t"g"\t"c"\t"insertions"\t"deletions"\t"^"\t""$" > "$OUTPUT_DIR"/test
 
-		A="$(echo "$BASES" | grep -o "A" | wc -l)
-		T="$(echo "$BASES" | grep -o "T" | wc -l)
-		G="$(echo "$BASES" | grep -o "G" | wc -l)
-		C="$(echo "$BASES" | grep -o "C" | wc -l)
-		
-		a="$(echo "$BASES" | grep -o "a" | wc -l)
-		t="$(echo "$BASES" | grep -o "t" | wc -l)
-		g="$(echo "$BASES" | grep -o "g" | wc -l)
-		c="$(echo "$BASES" | grep -o "c" | wc -l)
-		
-		DEPTH="$(echo "$LINE" | wc -c)"
-		
-		echo -e ""$CONTIG"\t"$POSITION"\t"$DEPTH"\t"$A"\t"$T"\t"$G"\t"$C"\t"$a"\t"$t"\t"$g"\t"$c"\t"$INSERTION"\T"$DELETION"" >>  "$OUTPUT_DIR"/"$(basename "$BAM" | sed "s/[.]bam$/."$CONTIG":"$PLOT_START"-"$PLOT_STOP".f.mpileup.summary/")"
-	done <  "$OUTPUT_DIR"/"$(basename "$BAM" | sed "s/[.]bam$/."$CONTIG":"$PLOT_START"-"$PLOT_STOP".f.mpileup/")"
+while read LINE; do
+CONTIG="$(echo "$LINE" | cut -f1)"
+POSITION="$(echo "$LINE" | cut -f2)"
+REF_BASE="$(echo "$LINE" | cut -f3)"
+REV_REF_BASE="$(echo "$REF_BASE" | tr '[:upper:]' '[:lower:]')"
+BASES="$(echo "$LINE" | cut -f5 | sed "s/\^.//g" | sed "s/[<>$]//g" | sed "s/[.]/"$REF_BASE"/g" | sed "s/[,]/"$REV_REF_BASE"/g")"
+INSERTION="NA"
+DELETION="NA"
+
+while [ "$(echo $BASES | grep -ob "[+-]" | head -n1 | wc -l)" -gt 0 ]; do
+INDEL_START="$(echo $BASES | grep -ob "[+-]" | head -n1 | cut -d":" -f1)"
+INDEL_LENGTH="${BASES:${INDEL_START} + 1:${INDEL_START} + 1}"
+INDEL="${BASES:${INDEL_START}:${INS_LENGTH} + 2}"
+OCCURENCES="$(echo "$BASES" | grep -o -- "$INDEL" | wc -l)"
+if [ "$(echo $INDEL | grep -ob "+" | wc -l)" -gt 0 ]; then
+INSERTION=""$INSERTION"|"$OCCURENCES":"$INDEL""
+INSERTION="$(echo "$INSERTION" | sed "s/NA[|]//g")"
+else
+DELETION=""$DELETION"|"$OCCURENCES":"$INDEL""
+DELETION="$(echo "$DELETION" | sed "s/NA[|]//g")"
+fi
+BASES="$(echo "$BASES" | sed "s/"$INDEL"//g")"
+done
+
+A="$(echo "$BASES" | grep -o "A" | wc -l)"
+T="$(echo "$BASES" | grep -o "T" | wc -l)"
+G="$(echo "$BASES" | grep -o "G" | wc -l)"
+C="$(echo "$BASES" | grep -o "C" | wc -l)"
+
+a="$(echo "$BASES" | grep -o "a" | wc -l)"
+t="$(echo "$BASES" | grep -o "t" | wc -l)"
+g="$(echo "$BASES" | grep -o "g" | wc -l)"
+c="$(echo "$BASES" | grep -o "c" | wc -l)"
+
+READ_START="$(echo "$LINE" | cut -f5 | grep -o "\^" | wc -l)"
+READ_END="$(echo "$LINE" | cut -f5 | grep -o "[$]" | wc -l)"
+
+DEPTH="$(echo "$BASES" | wc -c)"
+DEPTH="$(($DEPTH - 1))"
+
+echo -e ""$CONTIG"\t"$POSITION"\t"$REF_BASE"\t"$DEPTH"\t"$A"\t"$T"\t"$G"\t"$C"\t"$a"\t"$t"\t"$g"\t"$c"\t"$INSERTION"\t"$DELETION"\t"$READ_START"\t"$READ_END"" >> "$OUTPUT_DIR"/test
+done <  /local/projects-t3/EBMAL/SNP_MALE_GATK_Best_Practices/mPileup/Brugia_pahangi_L3.mpileup
 }
+
+
+
+
 
 main(){
 	splitbam
