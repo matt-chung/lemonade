@@ -1,0 +1,28 @@
+require(cowplot)
+require(ggplot2)
+require(gggenes)
+
+mpileup_sum_path <- ""
+gff_path <- ""
+spanki_output_path <- ""
+
+mpileup_sum <- read.delim(mpileup_sum_path)
+gff_path <- read.delim(gff_path,comment.char="#")
+spanki_output <- read.delim(spanki_output_path)
+
+gff_filter <- gff[gff[,1] == unique(mpileup_sum[,1]) & gff[,3] == "exon" & gff[,4] >= min(mpileup_sum[,2]) & gff[,5] <= max(mpileup_sum[,5]),]
+gff_filter[,9] <- gsub("ID=","",gff_filter[,9])
+gff_filter[,9] <- gsub(";.*","",gff_filter[,9])
+
+spanki_output_filter <- spanki_output[spankioutput[,] <= 0.05,]
+
+depth_plot <- ggplot()+
+  geom_area(mapping=aes(x=mpileup_sum[,1],y=mpileup_sum[,2]),color="grey")+
+ geom_curve(mapping=aes(x=spanki_output_filter,y=mpileup_sum_filter[mpileup_sum_filter[,2] == spanki_output_filter[,],3],xend=spanki_output_filter,yend=mpileup_sum_filter[mpileup_sum_filter[,2] == spanki_output_filter[,],3],),color="red")  theme_bw()
+  
+gene_plot <- ggplot()+
+  geom_gene_arrow(mapping=aes(x=gff_filter[,4],xend gff_filter[,5],y=gff_filter[,9]))+
+  scale_fill_brewer(palette = "Set3") +
+  theme_genes()
+  
+plot_grid(depth_plot, gene_plot, labels = c('A', 'B'), nrow = 2, col = 1)
